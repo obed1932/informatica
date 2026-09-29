@@ -80,6 +80,9 @@ export function createApp({ db, config }) {
 
   app.use('/assets', express.static(legacyAssets, { immutable: true, maxAge: '1d', index: false }));
   app.use(express.static(dist, { index: false }));
+  app.get('/', (_req, res, next) => {
+    res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
+  });
   app.get('/conformidad/:id', (req, res, next) => {
     if (!isUuid(req.params.id)) return next(new HttpError(404, 'Página no disponible'));
     res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });

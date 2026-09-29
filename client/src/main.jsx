@@ -63,6 +63,15 @@ function Signature({ onChange, clearSignal, theme }) {
   return <canvas ref={canvas} id="signature" aria-label="Área para dibujar la firma" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />;
 }
 
+function Landing({ theme, onTheme }) {
+  return <>
+    <div className="environment-bar"><div className="shell environment-inner"><div><span className="status-dot" /><strong>HOSPITAL DE CHANCAY · OTC</strong></div><span className="environment-right">PORTAL DE CONFORMIDAD</span></div></div>
+    <header className="topbar"><div className="shell topbar-inner"><div className="brand"><span className="brand-mark"><Icon name="hospital" /></span><div><div className="brand-title"><strong>Hospital de Chancay</strong><span className="brand-tag">OTC / SBS</span></div><small>Oficina de Estadística e Informática · Soporte Técnico</small></div></div><button className="theme-button" onClick={onTheme} aria-label="Cambiar tema"><Icon name="moon" /><span>Tema</span></button></div></header>
+    <main className="shell landing-main"><div className="landing-card"><span className="reference-chip"><Icon name="shield-check" /> ACCESO TEMPORAL POR QR</span><h1>Conformidad de órdenes de trabajo</h1><p>Para revisar y visar una intervención técnica, abre el enlace personal que figura en el código QR entregado por el personal de Informática.</p><div className="landing-instruction"><Icon name="lock" /><span>Este portal no muestra órdenes sin un enlace vigente. Si tu QR caducó, solicita uno nuevo al técnico responsable.</span></div><small>El visado se registra únicamente después de revisar la orden y confirmar tu firma manuscrita.</small></div></main>
+    <footer className="footer"><div className="shell"><span>Hospital de Chancay y Servicios Básicos de Salud</span><span>Área de Soporte Técnico</span></div></footer>
+  </>;
+}
+
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('otc-theme-v2') || 'dark');
   const [data, setData] = useState(null);
@@ -107,6 +116,7 @@ function App() {
     finally { setBusy(false); }
   }
   const pending = data?.state === 'PENDING';
+  if (location.pathname === '/') return <Landing theme={theme} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />;
   return <>
     <div className="environment-bar"><div className="shell environment-inner"><div><span className="status-dot" /><strong>ENLACE PERSONAL DE VISADO</strong><span className="bar-divider">|</span><span>Orden de trabajo de cómputo</span></div><span className="environment-right">ACCESO TEMPORAL · HOSPITAL DE CHANCAY</span></div></div>
     <header className="topbar"><div className="shell topbar-inner"><div className="brand"><span className="brand-mark"><Icon name="hospital" /></span><div><div className="brand-title"><strong>Hospital de Chancay</strong><span className="brand-tag">OTC / SBS</span></div><small>Oficina de Estadística e Informática · Área de Cómputo y Soporte</small></div></div><div className="topbar-actions"><span className="system-chip"><span className="status-dot" /> ENLACE DE CONFORMIDAD</span><span className="version-chip"><b>OTC</b><span>|</span>Visado de servicio</span><button className="theme-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Cambiar tema"><Icon name="moon" /><span>Tema</span></button></div></div></header>
