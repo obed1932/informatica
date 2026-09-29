@@ -42,6 +42,21 @@ export default function SupportPortal({ theme, onTheme }) {
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
+  useEffect(() => {
+    if (!qr) return undefined;
+    const closeOnEscape = event => { if (event.key === 'Escape') setQr(null); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [qr]);
+  async function shareQr() {
+    if (!qr) return;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Conformidad OTC', url: qr.url }); return; }
+      catch (error) { if (error.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(qr.url); }
+    catch { setError('No se pudo copiar el enlace. Use el QR desde esta pantalla.'); }
+  }
   const visible = items.filter(item => (tab === 'PENDING' ? item.state === 'PENDING' : item.state !== 'PENDING') &&
     [item.order_code, item.requester, item.service, item.equipment].join(' ').toLocaleLowerCase('es-PE').includes(query.toLocaleLowerCase('es-PE')));
   return <div className="support-page">
@@ -54,8 +69,9 @@ export default function SupportPortal({ theme, onTheme }) {
         {error && <div className="notice error" role="alert">{error}</div>}
         <div className="support-grid"><section className="support-panel"><span className="support-kicker">BANDEJA DE TRABAJO</span><h2>Mis órdenes</h2><div className="support-tabs"><button className={tab === 'PENDING' ? 'selected' : ''} onClick={() => { setTab('PENDING'); setSelected(null); setQr(null); }}>Pendientes</button><button className={tab === 'HISTORY' ? 'selected' : ''} onClick={() => { setTab('HISTORY'); setSelected(null); setQr(null); }}>Histórico</button></div><input className="support-search" placeholder="Buscar OTC, solicitante o equipo…" value={query} onChange={event => setQuery(event.target.value)} />
           <div className="support-list">{visible.length ? visible.map(item => <button key={item.request_uuid} className={`support-item ${selected?.request_uuid === item.request_uuid ? 'active' : ''}`} onClick={() => { setSelected(item); setQr(null); }}><span><strong>{item.order_code}</strong><em>{item.state === 'PENDING' ? 'Pendiente' : item.state === 'CONFORME' ? 'Conforme' : item.state}</em></span><small>{item.service} · {item.requester}</small><small>{item.equipment}</small></button>) : <p className="support-empty">No hay OTC en esta bandeja. Las órdenes aparecerán al publicarse desde el sistema local.</p>}</div></section>
-          <section className="support-panel support-detail">{selected ? <><span className="support-kicker">DETALLE DE LA INTERVENCIÓN · V{selected.version}</span><h2>{selected.order_code}</h2><div className="support-detail-fields"><div><span>SERVICIO</span><strong>{selected.service || '—'}</strong></div><div><span>SOLICITANTE</span><strong>{selected.requester || '—'}</strong></div><div><span>EQUIPO</span><strong>{selected.equipment || '—'}</strong></div><div><span>ESTADO</span><strong>{selected.state === 'PENDING' ? 'Pendiente de visado' : selected.state}</strong></div></div>{selected.state === 'PENDING' && <><p className="support-note">Cada QR nuevo reemplaza al anterior y caduca en tres horas. Comparte el QR solo con quien dará conformidad.</p><button className="primary-button" disabled={busy} onClick={generateQr}>{busy ? 'Generando…' : 'Generar o renovar QR'}</button></>}{qr && <div className="support-qr"><QRCodeSVG value={qr.url} size={224} marginSize={2} /><p>Válido hasta {new Date(qr.expires_at).toLocaleString('es-PE')}</p><button className="theme-button" onClick={() => navigator.clipboard.writeText(qr.url)}>Copiar enlace</button></div>}</> : <div className="support-placeholder"><span>▣</span><h2>Selecciona una OTC</h2><p>Verás su detalle y, si está pendiente, podrás generar el QR de conformidad.</p></div>}</section></div>
+          <section className="support-panel support-detail">{selected ? <><span className="support-kicker">DETALLE DE LA INTERVENCIÓN · V{selected.version}</span><h2>{selected.order_code}</h2><div className="support-detail-fields"><div><span>SERVICIO</span><strong>{selected.service || '—'}</strong></div><div><span>SOLICITANTE</span><strong>{selected.requester || '—'}</strong></div><div><span>EQUIPO</span><strong>{selected.equipment || '—'}</strong></div><div><span>ESTADO</span><strong>{selected.state === 'PENDING' ? 'Pendiente de visado' : selected.state}</strong></div></div>{selected.state === 'PENDING' && <><p className="support-note">Cada QR nuevo reemplaza al anterior y caduca en tres horas. Comparte el QR solo con quien dará conformidad.</p><button className="primary-button" disabled={busy} onClick={generateQr}>{busy ? 'Generando…' : 'Generar o renovar QR'}</button></>}</> : <div className="support-placeholder"><span>▣</span><h2>Selecciona una OTC</h2><p>Verás su detalle y, si está pendiente, podrás generar el QR de conformidad.</p></div>}</section></div>
       </main>}
+    {qr && <div className="support-qr-overlay" role="presentation" onClick={() => setQr(null)}><section className="support-qr-dialog" role="dialog" aria-modal="true" aria-labelledby="support-qr-title" onClick={event => event.stopPropagation()}><button className="support-qr-close" type="button" aria-label="Cerrar QR" onClick={() => setQr(null)}>×</button><span className="support-kicker">ENLACE TEMPORAL DE VISADO</span><h2 id="support-qr-title">QR de conformidad</h2><p className="support-qr-order">{qr.order_code}</p><div className="support-qr-code"><QRCodeSVG value={qr.url} size={224} marginSize={2} /></div><p className="support-qr-expiry">Válido hasta {new Date(qr.expires_at).toLocaleString('es-PE')}</p><p className="support-qr-hint">Muestra este código a quien dará conformidad. Cada QR nuevo invalida el anterior.</p><button className="primary-button" type="button" onClick={shareQr}>Compartir o copiar enlace</button></section></div>}
     <footer className="footer"><div className="shell"><span>Hospital de Chancay y Servicios Básicos de Salud</span><span>Oficina de Estadística e Informática · Área de Soporte Técnico</span></div></footer>
   </div>;
 }
