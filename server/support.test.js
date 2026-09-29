@@ -34,7 +34,13 @@ test('login real, propietario de OTC, QR único y cierre', async () => {
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    let response = await fetch(`${base}/api/support/orders/${requestId}/qr`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    let response = await fetch(`${base}/api/support/me`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { user: null });
+    response = await fetch(`${base}/favicon.ico`, { redirect: 'manual' });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/favicon.svg');
+    response = await fetch(`${base}/api/support/orders/${requestId}/qr`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     assert.equal(response.status, 401);
     response = await fetch(`${base}/api/support/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'TECNICO', password: 'clave-sintetica' }) });
     assert.equal(response.status, 200);

@@ -51,7 +51,13 @@ export function supportRoutes(app, db, config) {
   }));
 
   app.get('/api/support/me', safe(async (req, res) => {
-    const user = await session(req);
+    let user;
+    try { user = await session(req); }
+    catch (error) {
+      if (error.status !== 401) throw error;
+      res.clearCookie('otc_session', { path: '/', secure: config.origin.startsWith('https:'), sameSite: 'strict' });
+      return res.json({ user: null });
+    }
     res.json({ user: { id: user.local_user_id, username: user.username, name: user.display_name, role: user.role } });
   }));
 

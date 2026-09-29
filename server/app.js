@@ -82,6 +82,7 @@ export function createApp({ db, config }) {
 
   app.use('/assets', express.static(legacyAssets, { immutable: true, maxAge: '1d', index: false }));
   app.use(express.static(dist, { index: false }));
+  app.get('/favicon.ico', (_req, res) => res.redirect(302, '/favicon.svg'));
   app.get('/', (_req, res, next) => {
     res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
   });
