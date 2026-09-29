@@ -33,8 +33,10 @@ export async function relayOnce(db, config) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const config = settings();
-  if (!config.relayEnabled) { console.error('Relay desactivado'); process.exit(2); }
-  const db = pool(config);
-  try { await relayOnce(db, config); } finally { await db.end(); }
+  (async () => {
+    const config = settings();
+    if (!config.relayEnabled) throw new Error('Relay desactivado');
+    const db = pool(config);
+    try { await relayOnce(db, config); } finally { await db.end(); }
+  })().catch(error => { console.error(error); process.exitCode = 2; });
 }
