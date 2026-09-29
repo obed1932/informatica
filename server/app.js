@@ -6,7 +6,7 @@ import { HttpError, isUuid, publicPayload, publicState, sha256, signatureBytes, 
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const legacyAssets = path.join(root, 'public', 'assets');
-const dist = path.join(root, 'dist');
+const dist = path.join(root, 'build');
 const fail = (status, message) => { throw new HttpError(status, message); };
 
 export function createApp({ db, config }) {
