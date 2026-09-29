@@ -3,6 +3,7 @@ import { randomUUID, createHmac } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { HttpError, isUuid, publicPayload, publicState, sha256, signatureBytes, tokenMatches, validSigner } from './domain.js';
+import { supportRoutes } from './support.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const legacyAssets = path.join(root, 'public', 'assets');
@@ -21,11 +22,12 @@ export function createApp({ db, config }) {
   });
   app.use('/api', (req, _res, next) => {
     if (req.headers.origin && req.headers.origin !== config.origin) return next(new HttpError(403, 'Origen no permitido'));
-    if (req.method !== 'POST') return next(new HttpError(405, 'Método no permitido'));
-    if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return next(new HttpError(415, 'Se requiere JSON'));
+    if (req.method !== 'POST' && !(req.method === 'GET' && req.path.startsWith('/support/'))) return next(new HttpError(405, 'Método no permitido'));
+    if (req.method === 'POST' && !String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return next(new HttpError(415, 'Se requiere JSON'));
     next();
   });
   app.use('/api', express.json({ limit: '400kb', strict: true }));
+  supportRoutes(app, db, config);
 
   async function checkedRequest(connection, id, token, lock = false) {
     if (!isUuid(id) || typeof token !== 'string' || token.length < 32 || token.length > 128) fail(404, 'Solicitud no disponible');
@@ -81,6 +83,9 @@ export function createApp({ db, config }) {
   app.use('/assets', express.static(legacyAssets, { immutable: true, maxAge: '1d', index: false }));
   app.use(express.static(dist, { index: false }));
   app.get('/', (_req, res, next) => {
+    res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
+  });
+  app.get('/soporte', (_req, res, next) => {
     res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
   });
   app.get('/conformidad/:id', (req, res, next) => {

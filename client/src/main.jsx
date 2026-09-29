@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../public/assets/app.css';
 import './extra.css';
+import SupportPortal from './SupportPortal.jsx';
 
 const fields = [['Denominación', 'denominacion'], ['Marca', 'marca'], ['Modelo', 'modelo'], ['Serie', 'serie'], ['Código de cómputo', 'codigo_patrimonial'], ['Nombre en red', 'hostname']];
 const Icon = ({ name }) => <span className={`icon icon-${name}`} aria-hidden="true" />;
@@ -116,7 +117,7 @@ function App() {
     finally { setBusy(false); }
   }
   const pending = data?.state === 'PENDING';
-  if (location.pathname === '/') return <Landing theme={theme} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />;
+  if (location.pathname === '/' || location.pathname === '/soporte') return <SupportPortal theme={theme} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />;
   return <>
     <div className="environment-bar"><div className="shell environment-inner"><div><span className="status-dot" /><strong>ENLACE PERSONAL DE VISADO</strong><span className="bar-divider">|</span><span>Orden de trabajo de cómputo</span></div><span className="environment-right">ACCESO TEMPORAL · HOSPITAL DE CHANCAY</span></div></div>
     <header className="topbar"><div className="shell topbar-inner"><div className="brand"><span className="brand-mark"><Icon name="hospital" /></span><div><div className="brand-title"><strong>Hospital de Chancay</strong><span className="brand-tag">OTC / SBS</span></div><small>Oficina de Estadística e Informática · Área de Cómputo y Soporte</small></div></div><div className="topbar-actions"><span className="system-chip"><span className="status-dot" /> ENLACE DE CONFORMIDAD</span><span className="version-chip"><b>OTC</b><span>|</span>Visado de servicio</span><button className="theme-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Cambiar tema"><Icon name="moon" /><span>Tema</span></button></div></div></header>

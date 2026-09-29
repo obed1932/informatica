@@ -13,15 +13,19 @@
     "test": "node --test server/*.test.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "mysql2": "^3.14.0",
     "pngjs": "^7.0.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "vite": "^6.3.5"
   },
-  "engines": { "node": ">=20.19.0" }
+  "engines": {
+    "node": ">=20.19.0"
+  }
 }
