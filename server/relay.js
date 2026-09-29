@@ -1,12 +1,15 @@
 import { createHmac } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { pool, settings } from './config.js';
 
-const config = settings();
-if (!config.relayEnabled) { console.error('Relay desactivado'); process.exit(2); }
-const url = new URL(config.relayUrl);
-if (url.protocol !== 'https:' || url.pathname !== '/otc/events' || url.search || url.hash) throw new Error('OTC_RELAY_URL inválida');
-const db = pool(config);
-try {
+export function validateRelayUrl(config) {
+  const url = new URL(config.relayUrl);
+  if (url.protocol !== 'https:' || url.pathname !== '/otc/events' || url.search || url.hash) throw new Error('OTC_RELAY_URL inválida');
+  return url;
+}
+
+export async function relayOnce(db, config) {
+  const url = validateRelayUrl(config);
   const [rows] = await db.query("SELECT event_uuid,payload_json FROM otc_public_outbox WHERE state='PENDING' ORDER BY created_at,event_uuid LIMIT 30");
   for (const row of rows) {
     const raw = typeof row.payload_json === 'string' ? row.payload_json : JSON.stringify(row.payload_json);
@@ -26,4 +29,12 @@ try {
       console.error(`Retry pending ${row.event_uuid}`);
     }
   }
-} finally { await db.end(); }
+  return rows.length;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const config = settings();
+  if (!config.relayEnabled) { console.error('Relay desactivado'); process.exit(2); }
+  const db = pool(config);
+  try { await relayOnce(db, config); } finally { await db.end(); }
+}
