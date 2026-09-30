@@ -7,8 +7,11 @@ const requestId = '11111111-2222-4333-8444-555555555555';
 
 test('login real, propietario de OTC, QR único y cierre', async () => {
   const hash = await bcrypt.hash('clave-sintetica', 4);
-  let row = { request_uuid: requestId, technician_local_id: 7, state: 'PENDING', order_code: 'OTC-TEST' };
+  let row = { request_uuid: requestId, order_uuid: '22222222-3333-4444-8555-666666666666',
+    document_version: 2, document_sha256: 'a'.repeat(64), technician_local_id: 7,
+    state: 'PENDING', order_code: 'OTC-TEST' };
   const executed = [];
+  const events = [];
   const connection = {
     async beginTransaction() { executed.push('BEGIN'); }, async commit() { executed.push('COMMIT'); },
     async rollback() { executed.push('ROLLBACK'); }, release() {},
@@ -16,6 +19,7 @@ test('login real, propietario de OTC, QR único y cierre', async () => {
       executed.push(sql);
       if (sql.includes('FROM otc_public_requests WHERE request_uuid=')) return [[{ ...row }]];
       if (sql.startsWith('UPDATE otc_public_requests SET token_sha256=')) row = { ...row, token_sha256: params[0] };
+      if (sql.startsWith('INSERT INTO otc_public_outbox')) events.push(JSON.parse(params[2]));
       return [{}];
     },
   };
@@ -58,6 +62,11 @@ test('login real, propietario de OTC, QR único y cierre', async () => {
     assert.match(qr.url, /#token=/);
     assert.equal(qr.url.includes('clave-sintetica'), false);
     assert.equal(executed.some(sql => sql.startsWith('INSERT INTO otc_qr_audit')), true);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].event_type, 'OTC_QR_ROTATED');
+    assert.equal(events[0].token_sha256, row.token_sha256);
+    assert.equal(events[0].rotation_nonce.length, 32);
+    assert.equal(JSON.stringify(events[0]).includes(qr.url.split('#token=')[1]), false);
     assert.equal(executed.includes('COMMIT'), true);
     row.state = 'CONFORME';
     response = await fetch(`${base}/api/support/orders/${requestId}/qr`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' });

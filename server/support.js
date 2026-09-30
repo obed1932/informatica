@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { HttpError, isUuid, sha256 } from './domain.js';
 
@@ -6,6 +6,10 @@ const SESSION_HOURS = 12;
 const QR_HOURS = 3;
 const failed = new Map();
 const reject = (status, message) => { throw new HttpError(status, message); };
+
+export function deriveQrToken(key, requestId, nonce) {
+  return createHmac('sha256', key).update(`otc-qr-v1:${requestId}:${nonce}`).digest('base64url');
+}
 
 function cookieValue(req, key) {
   const entry = String(req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith(`${key}=`));
@@ -88,19 +92,29 @@ export function supportRoutes(app, db, config) {
     let connection;
     try {
       connection = await db.getConnection(); await connection.beginTransaction();
-      const [rows] = await connection.execute('SELECT request_uuid,technician_local_id,state,order_code FROM otc_public_requests WHERE request_uuid=? FOR UPDATE', [req.params.id]);
+      const [rows] = await connection.execute('SELECT request_uuid,order_uuid,document_version,document_sha256,technician_local_id,state,order_code FROM otc_public_requests WHERE request_uuid=? FOR UPDATE', [req.params.id]);
       const row = rows[0];
       if (!row || user.role !== 'ADMIN' && row.technician_local_id !== user.local_user_id) reject(404, 'OTC no disponible');
       if (row.state !== 'PENDING') reject(409, 'La OTC ya no admite un QR nuevo');
-      const raw = randomBytes(32).toString('base64url');
-      await connection.execute('UPDATE otc_public_requests SET token_sha256=?,expires_at=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL ? HOUR) WHERE request_uuid=? AND state=\'PENDING\'',
-        [sha256(raw), QR_HOURS, row.request_uuid]);
+      const nonce = randomBytes(16).toString('hex');
+      const raw = deriveQrToken(config.relayKey, row.request_uuid, nonce);
+      const digest = sha256(raw);
+      const expires = new Date(Date.now() + QR_HOURS * 3600_000);
+      const expiresSql = expires.toISOString().slice(0, 23).replace('T', ' ');
+      await connection.execute('UPDATE otc_public_requests SET token_sha256=?,expires_at=? WHERE request_uuid=? AND state=\'PENDING\'',
+        [digest, expiresSql, row.request_uuid]);
       await connection.execute('INSERT INTO otc_qr_audit (request_uuid,local_user_id,action) VALUES (?,?,?)',
         [row.request_uuid, user.local_user_id, 'QR_RENOVADO']);
+      const event = { event_uuid: randomUUID(), event_type: 'OTC_QR_ROTATED', order_uuid: row.order_uuid,
+        request_uuid: row.request_uuid, document_version: row.document_version,
+        document_sha256: row.document_sha256, rotation_nonce: nonce,
+        token_sha256: digest, expires_at: expires.toISOString(), rotated_at: new Date().toISOString() };
+      await connection.execute('INSERT INTO otc_public_outbox (event_uuid,request_uuid,payload_json) VALUES (?,?,?)',
+        [event.event_uuid, row.request_uuid, JSON.stringify(event)]);
       await connection.commit();
       res.json({ request_uuid: row.request_uuid, order_code: row.order_code,
         url: `${config.origin}/conformidad/${row.request_uuid}#token=${raw}`,
-        expires_at: new Date(Date.now() + QR_HOURS * 3600_000).toISOString() });
+        expires_at: expires.toISOString() });
     } catch (error) { if (connection) await connection.rollback().catch(() => {}); throw error; }
     finally { if (connection) connection.release(); }
   }));
