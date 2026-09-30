@@ -61,6 +61,14 @@ export function supportRoutes(app, db, config) {
     res.json({ user: { id: user.local_user_id, username: user.username, name: user.display_name, role: user.role } });
   }));
 
+  app.get('/api/support/relay-status', safe(async (req, res) => {
+    await session(req);
+    const [rows] = await db.execute("SELECT COUNT(*) AS pending FROM otc_public_outbox WHERE state='PENDING'");
+    res.json({ enabled: config.relayEnabled,
+      destination: config.relayEnabled ? new URL(config.relayUrl).host : null,
+      pending: Number(rows[0]?.pending || 0) });
+  }));
+
   app.get('/api/support/orders', safe(async (req, res) => {
     const user = await session(req);
     const where = user.role === 'ADMIN' ? '' : ' WHERE technician_local_id=?';

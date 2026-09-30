@@ -25,6 +25,7 @@ test('login real, propietario de OTC, QR único y cierre', async () => {
       executed.push(sql);
       if (sql.includes('FROM otc_cloud_users WHERE username=')) return [[{ local_user_id: 7, username: 'TECNICO', display_name: 'Técnico Prueba', password_hash: hash, role: 'TECH' }]];
       if (sql.includes('FROM otc_cloud_sessions s')) return [[{ local_user_id: 7, username: 'TECNICO', display_name: 'Técnico Prueba', role: 'TECH' }]];
+      if (sql.includes('COUNT(*) AS pending FROM otc_public_outbox')) return [[{ pending: 2 }]];
       if (sql.includes('FROM otc_public_requests WHERE technician_local_id=')) return [[{ ...row, document_version: 1, expires_at: '2099-01-01 00:00:00', published_at: '2026-09-29 00:00:00', snapshot_json: '{}' }]];
       return [{}];
     },
@@ -48,6 +49,9 @@ test('login real, propietario de OTC, QR único y cierre', async () => {
     response = await fetch(`${base}/api/support/orders`, { headers: { Cookie: cookie } });
     assert.equal(response.status, 200);
     assert.equal((await response.json()).items.length, 1);
+    response = await fetch(`${base}/api/support/relay-status`, { headers: { Cookie: cookie } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).pending, 2);
     response = await fetch(`${base}/api/support/orders/${requestId}/qr`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' });
     assert.equal(response.status, 200);
     const qr = await response.json();
