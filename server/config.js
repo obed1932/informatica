@@ -14,7 +14,9 @@ export function settings(env = process.env) {
       waitForConnections: true, connectionLimit: 8, multipleStatements: false },
     origin: origin.origin,
     relayUrl: env.OTC_RELAY_URL || '', relayKey: env.OTC_RELAY_HMAC_KEY,
-    relayEnabled: env.OTC_RELAY_ENABLED === 'true',
+    // A configured relay URL is an explicit delivery target. Keeping a separate
+    // disabled flag caused signed conformities to remain forever in the outbox.
+    relayEnabled: Boolean(env.OTC_RELAY_URL),
   };
 }
 
