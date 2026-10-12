@@ -58,7 +58,7 @@ export function publicPayload(row) {
     service: snapshot.servicio || '', requester: snapshot.solicitante || '',
     equipment: Object.fromEntries(['denominacion','marca','modelo','serie','codigo_patrimonial','hostname'].map(key => [key, equipment[key] || ''])),
     occurrence: snapshot.ocurrencia || '', diagnosis: snapshot.diagnostico || '',
-    work: snapshot.trabajo_realizado || '', jobs: snapshot.trabajos || [],
+    work: snapshot.trabajo_realizado || '', conclusion: snapshot.conclusion || '', jobs: snapshot.trabajos || [],
     started_at: snapshot.fecha_inicio || null, ended_at: snapshot.fecha_termino || null,
   };
 }

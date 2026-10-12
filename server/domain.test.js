@@ -14,11 +14,12 @@ test('token correcto y otro token no coincide', () => {
 test('caducidad y payload público sin token ni firma técnica', () => {
   const row = { state: 'PENDING', expires_at: '2026-01-01 00:00:00', request_uuid: '11111111-2222-4333-8444-555555555555',
     order_code: 'OTC-DEMO', document_version: 1, document_sha256: 'a'.repeat(64), token_sha256: 'b'.repeat(64),
-    snapshot_json: JSON.stringify({ servicio: 'Archivo Clínico', solicitante: 'Persona Prueba', equipo: { marca: 'DELL', secreto: 'NO' }, firma_tecnico: 'NO' }) };
+    snapshot_json: JSON.stringify({ servicio: 'Archivo Clínico', solicitante: 'Persona Prueba', conclusion: 'Equipo operativo tras la intervención.', equipo: { marca: 'DELL', secreto: 'NO' }, firma_tecnico: 'NO' }) };
   assert.equal(publicState(row, Date.parse('2026-01-02T00:00:00Z')), 'EXPIRED');
   const output = publicPayload(row);
   assert.equal(output.service, 'Archivo Clínico');
   assert.equal(output.equipment.marca, 'DELL');
+  assert.equal(output.conclusion, 'Equipo operativo tras la intervención.');
   assert.equal(JSON.stringify(output).includes('secreto'), false);
   assert.equal(JSON.stringify(output).includes('token_sha256'), false);
 });
