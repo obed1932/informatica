@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import './support.css';
 
@@ -23,7 +23,29 @@ export default function SupportPortal({ theme, onTheme }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => { api('/api/support/me').then(data => setUser(data.user)).catch(() => {}).finally(() => setLoading(false)); }, []);
-  useEffect(() => { if (user) api('/api/support/orders').then(data => setItems(data.items)).catch(err => setError(err.message)); }, [user]);
+  const refreshOrders = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await api('/api/support/orders');
+      setItems(data.items);
+      setSelected(current => current ? data.items.find(item => item.request_uuid === current.request_uuid) || null : null);
+      setError('');
+    } catch (err) { setError(err.message); }
+  }, [user]);
+  useEffect(() => {
+    if (!user) return undefined;
+    refreshOrders();
+    const onFocus = () => refreshOrders();
+    const onVisible = () => { if (!document.hidden) refreshOrders(); };
+    const timer = window.setInterval(() => { if (!document.hidden) refreshOrders(); }, 30000);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user, refreshOrders]);
   async function login(event) {
     event.preventDefault(); setBusy(true); setError('');
     try { const result = await api('/api/support/login', 'POST', { username, password }); setUser(result.user); setPassword(''); }
@@ -67,7 +89,7 @@ export default function SupportPortal({ theme, onTheme }) {
       : <main className="shell support-main"><div className="support-head"><div><span className="support-kicker">ÓRDENES DE TRABAJO CÓMPUTO</span><h1>Gestión de OTC</h1><p>Prepara, revisa y comparte la conformidad de cada intervención.</p></div><div className="support-user"><span className="support-avatar">{user.name?.slice(0, 2).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.role === 'ADMIN' ? 'Administrador OTC' : 'Técnico de soporte'}</small></div></div></div>
         <div className="support-stats"><div><span>PENDIENTES DE VISADO</span><strong>{items.filter(item => item.state === 'PENDING').length}</strong><small>QR renovable</small></div><div><span>HISTÓRICO</span><strong>{items.filter(item => item.state !== 'PENDING').length}</strong><small>Versiones cerradas</small></div></div>
         {error && <div className="notice error" role="alert">{error}</div>}
-        <div className="support-grid"><section className="support-panel"><span className="support-kicker">BANDEJA DE TRABAJO</span><h2>Mis órdenes</h2><div className="support-tabs"><button className={tab === 'PENDING' ? 'selected' : ''} onClick={() => { setTab('PENDING'); setSelected(null); setQr(null); }}>Pendientes</button><button className={tab === 'HISTORY' ? 'selected' : ''} onClick={() => { setTab('HISTORY'); setSelected(null); setQr(null); }}>Histórico</button></div><input className="support-search" placeholder="Buscar OTC, solicitante o equipo…" value={query} onChange={event => setQuery(event.target.value)} />
+        <div className="support-grid"><section className="support-panel"><span className="support-kicker">BANDEJA DE TRABAJO</span><div className="support-panel-heading"><h2>Mis órdenes</h2><button type="button" className="theme-button" onClick={refreshOrders}>Actualizar</button></div><div className="support-tabs"><button className={tab === 'PENDING' ? 'selected' : ''} onClick={() => { setTab('PENDING'); setSelected(null); setQr(null); }}>Pendientes</button><button className={tab === 'HISTORY' ? 'selected' : ''} onClick={() => { setTab('HISTORY'); setSelected(null); setQr(null); }}>Histórico</button></div><input className="support-search" placeholder="Buscar OTC, solicitante o equipo…" value={query} onChange={event => setQuery(event.target.value)} />
           <div className="support-list">{visible.length ? visible.map(item => <button key={item.request_uuid} className={`support-item ${selected?.request_uuid === item.request_uuid ? 'active' : ''}`} onClick={() => { setSelected(item); setQr(null); }}><span><strong>{item.order_code}</strong><em>{item.state === 'PENDING' ? 'Pendiente' : item.state === 'CONFORME' ? 'Conforme' : item.state}</em></span><small>{item.service} · {item.requester}</small><small>{item.equipment}</small></button>) : <p className="support-empty">No hay OTC en esta bandeja. Las órdenes aparecerán al publicarse desde el sistema local.</p>}</div></section>
           <section className="support-panel support-detail">{selected ? <><span className="support-kicker">DETALLE DE LA INTERVENCIÓN · V{selected.version}</span><h2>{selected.order_code}</h2><div className="support-detail-fields"><div><span>SERVICIO</span><strong>{selected.service || '—'}</strong></div><div><span>SOLICITANTE</span><strong>{selected.requester || '—'}</strong></div><div><span>EQUIPO</span><strong>{selected.equipment || '—'}</strong></div><div><span>ESTADO</span><strong>{selected.state === 'PENDING' ? 'Pendiente de visado' : selected.state}</strong></div></div>{selected.state === 'PENDING' && <><p className="support-note">Cada QR nuevo reemplaza al anterior y caduca en tres horas. Comparte el QR solo con quien dará conformidad.</p><button className="primary-button" disabled={busy} onClick={generateQr}>{busy ? 'Generando…' : 'Generar o renovar QR'}</button></>}</> : <div className="support-placeholder"><span>▣</span><h2>Selecciona una OTC</h2><p>Verás su detalle y, si está pendiente, podrás generar el QR de conformidad.</p></div>}</section></div>
       </main>}

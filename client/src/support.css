@@ -10,3 +10,4 @@
 .support-qr-hint{margin:0 0 18px;color:var(--muted);font-size:12px;line-height:1.5}
 .support-qr-dialog .primary-button{width:100%}
 @media(max-width:500px){.support-qr-overlay{padding:10px}.support-qr-dialog{max-height:calc(100dvh - 20px);padding:20px 16px}.support-qr-code{width:min(272px,100%)}.support-qr-dialog h2{font-size:21px}}
+.support-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.support-panel-heading h2{margin:0}.support-panel-heading .theme-button{white-space:nowrap}
