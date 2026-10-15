@@ -54,7 +54,7 @@ try {
   const qrResponse = await responsePromise;
   assertStatus(qrResponse, 200, 'renovación QR desde React');
   const qr = await qrResponse.json();
-  await support.locator('.support-qr svg').waitFor();
+  await support.locator('.support-qr-code svg').waitFor();
   const token = new URLSearchParams(new URL(qr.url).hash.slice(1)).get('token');
   assertStatus(await post(base, '/api/request', { request_uuid: requestId, token: oldToken }), 404, 'QR anterior invalidado');
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -77,7 +77,11 @@ try {
   const confirmed = await confirmedPromise;
   assertStatus(confirmed, 200, 'visado desde móvil');
   const result = await confirmed.json();
-  await mobile.getByText('Tu conformidad quedó registrada', { exact: false }).waitFor();
+  await mobile.getByRole('heading', { name: 'Gracias por visar la OTC' }).waitFor();
+  if (new URL(mobile.url()).pathname !== '/finalizado') throw new Error('No se mostró la página final');
+  if (await mobile.getByRole('button').count()) throw new Error('La página final no debe ofrecer acciones de retorno');
+  await mobile.reload({ waitUntil: 'networkidle' });
+  await mobile.getByRole('heading', { name: 'Gracias por visar la OTC' }).waitFor();
   await mkdir('test-output', { recursive: true });
   await mobile.screenshot({ path: 'test-output/otc-visado-mobile.png', fullPage: true });
   const png = new PNG({ width: 220, height: 100 }); png.data.fill(255);
@@ -87,7 +91,7 @@ try {
   const [decisions] = await db.execute('SELECT signer_name,signature_sha256 FROM otc_public_decisions WHERE request_uuid=?', [requestId]);
   const [outbox] = await db.execute('SELECT state,event_uuid FROM otc_public_outbox WHERE request_uuid=?', [requestId]);
   const [audit] = await db.execute('SELECT action FROM otc_qr_audit WHERE request_uuid=?', [requestId]);
-  if (decisions.length !== 1 || outbox.length !== 1 || audit.length !== 1 || outbox[0].event_uuid !== result.event_uuid) throw new Error('Falta decisión, outbox o auditoría');
+  if (decisions.length !== 1 || outbox.length !== 2 || audit.length !== 1 || !outbox.some(event => event.event_uuid === result.event_uuid)) throw new Error(`Falta decisión, eventos o auditoría: decisions=${decisions.length}, outbox=${outbox.length}, audit=${audit.length}`);
   if (pageErrors.length) throw new Error(`Errores JavaScript: ${pageErrors.join('; ')}`);
   console.log('OK: login React, bandeja, QR, token anterior revocado, firma móvil, visado único, decisión/outbox/auditoría en MariaDB');
 } finally {

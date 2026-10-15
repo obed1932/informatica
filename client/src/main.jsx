@@ -73,6 +73,17 @@ function Landing({ theme, onTheme }) {
   </>;
 }
 
+function Completion() {
+  return <main className="completion-page"><section className="completion-card" role="alert" aria-live="assertive">
+    <div className="completion-mark" aria-hidden="true">✓</div>
+    <span className="completion-kicker">HOSPITAL DE CHANCAY · OTC</span>
+    <h1>Gracias por visar la OTC</h1>
+    <p className="completion-message">Área de Informática HCH, comprometidos con mejorar la calidad de atención.</p>
+    <p className="completion-detail">Tu conformidad quedó registrada. La actualización del sistema local se realiza automáticamente.</p>
+    <span className="completion-footnote">Ya puedes cerrar esta pestaña.</span>
+  </section></main>;
+}
+
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('otc-theme-v2') || 'dark');
   const [data, setData] = useState(null);
@@ -84,6 +95,7 @@ function App() {
   const [clearSignal, setClearSignal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [observe, setObserve] = useState(false);
+  const [completed, setCompleted] = useState(() => location.pathname === '/finalizado');
   const requestId = location.pathname.match(/^\/conformidad\/([0-9a-f-]{36})\/?$/i)?.[1];
   const token = useRef(null);
   if (token.current === null) {
@@ -92,6 +104,7 @@ function App() {
   }
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('otc-theme-v2', theme); }, [theme]);
   useEffect(() => {
+    if (completed) return;
     if (!requestId || !token.current) { setNotice({ text: 'El enlace de visado está incompleto. Solicita un nuevo QR al área de Informática.', kind: 'error' }); return; }
     let active = true;
     post('/api/request', { request_uuid: requestId, token: token.current }).then(result => {
@@ -100,7 +113,7 @@ function App() {
       setNotice(result.state === 'PENDING' ? null : { text: result.state === 'CONFORME' ? 'Este visado ya fue registrado. La sincronización y el PDF se procesan en el sistema local.' : 'El plazo de visado terminó o la solicitud fue cerrada.', kind: result.state === 'CONFORME' ? 'success' : 'error' });
     }).catch(error => { if (active) setNotice({ text: error.message, kind: 'error' }); });
     return () => { active = false; };
-  }, [requestId]);
+  }, [requestId, completed]);
   const cleanName = signerName.trim().replace(/\s+/g, ' ');
   const validName = !thirdParty || (/^[\p{L}\p{M}][\p{L}\p{M} .'-]{3,199}$/u.test(cleanName) && cleanName.split(' ').length >= 2 && cleanName.toLocaleLowerCase('es-PE') !== String(data?.requester || '').trim().toLocaleLowerCase('es-PE'));
   const canSubmit = data?.state === 'PENDING' && signed && accepted && validName && !busy;
@@ -110,13 +123,14 @@ function App() {
     try {
       const result = await post('/api/conform', { request_uuid: requestId, token: token.current, accepted: true,
         signer_is_third_party: thirdParty, signer_name: thirdParty ? cleanName : null, signature_png_base64: Signature.exportPng() });
-      setData(previous => ({ ...previous, state: result.state }));
-      setNotice({ text: 'Tu conformidad quedó registrada en el hosting. La entrega al sistema local puede tardar; aún no se ha generado el PDF definitivo.', kind: 'success' });
       token.current = '';
+      history.replaceState({ otcComplete: true }, '', '/finalizado');
+      setCompleted(true);
     } catch (error) { setNotice({ text: error.message, kind: 'error' }); }
     finally { setBusy(false); }
   }
   const pending = data?.state === 'PENDING';
+  if (completed) return <Completion />;
   if (location.pathname === '/' || location.pathname === '/soporte') return <SupportPortal theme={theme} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />;
   return <>
     <div className="environment-bar"><div className="shell environment-inner"><div><span className="status-dot" /><strong>ENLACE PERSONAL DE VISADO</strong><span className="bar-divider">|</span><span>Orden de trabajo de cómputo</span></div><span className="environment-right">ACCESO TEMPORAL · HOSPITAL DE CHANCAY</span></div></div>

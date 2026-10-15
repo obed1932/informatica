@@ -89,6 +89,9 @@ export function createApp({ db, config }) {
   app.get('/soporte', (_req, res, next) => {
     res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
   });
+  app.get('/finalizado', (_req, res, next) => {
+    res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
+  });
   app.get('/conformidad/:id', (req, res, next) => {
     if (!isUuid(req.params.id)) return next(new HttpError(404, 'Página no disponible'));
     res.sendFile(path.join(dist, 'index.html'), error => { if (error) next(error); });
